@@ -1,0 +1,43 @@
+{
+  "name": "sgm-lt",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sistema de Gestión Musical Lucy Tejada - Módulo de Música",
+  "scripts": {
+    "postinstall": "prisma generate && node scripts/copy-swagger.mjs",
+    "setup": "prisma db push && tsx prisma/seed.ts",
+    "reset": "node -e \"require('fs').rmSync('prisma/dev.db',{force:true})\" && npm run setup",
+    "dev": "next dev",
+    "dev:https": "next dev --experimental-https",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "test:aceptacion": "node scripts/prueba-aceptacion.mjs",
+    "loadtest": "node scripts/loadtest.mjs",
+    "openapi": "tsx scripts/exportar-openapi.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.16.0",
+    "bcryptjs": "^3.0.2",
+    "exceljs": "^4.4.0",
+    "jose": "^6.1.0",
+    "next": "^15.5.0",
+    "pdf-lib": "^1.17.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "swagger-ui-dist": "^5.17.14",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "autocannon": "^8.0.0",
+    "prisma": "^6.16.0",
+    "tailwindcss": "^4.1.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}

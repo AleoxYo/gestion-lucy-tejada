@@ -1,0 +1,255 @@
+// Modelo de datos del Módulo de Música (SGM-LT)
+// Los "enums" se guardan como String porque SQLite no tiene tipo enumerado;
+// los valores válidos están en src/lib/constantes.ts y se validan con Zod.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Seguridad y usuarios (CAR-11, CAR-12) ----------
+
+model Usuario {
+  id                  String    @id @default(cuid())
+  nombre              String
+  email               String    @unique
+  passwordHash        String
+  rol                 String // DIRECTOR | AUXILIAR | FORMADOR | PARTICIPANTE
+  documento           String?
+  telefono            String?
+  activo              Boolean   @default(true)
+  aceptaTratamiento   Boolean   @default(false) // Ley 1581 de 2012
+  fechaAceptacion     DateTime?
+  createdAt           DateTime  @default(now())
+
+  procesosFormador    Proceso[]
+  inscripciones       Inscripcion[]
+  accesos             RegistroAcceso[]
+}
+
+model RegistroAcceso {
+  id        String   @id @default(cuid())
+  usuarioId String?
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  email     String?
+  accion    String // LOGIN_OK | LOGIN_FALLIDO | LOGOUT | REGISTRO | API
+  metodo    String?
+  ruta      String?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// ---------- Conciertos (CAR-01, CAR-02) ----------
+
+model SolicitudConcierto {
+  id               String     @id @default(cuid())
+  tipoSolicitante  String // INSTITUCION | COMUNIDAD
+  solicitante      String
+  institucion      String?
+  email            String
+  telefono         String?
+  fechaPropuesta   DateTime
+  lugar            String
+  descripcion      String
+  estado           String     @default("PENDIENTE") // PENDIENTE | APROBADA | RECHAZADA
+  respuesta        String?
+  fechaRespuesta   DateTime?
+  aceptaTratamiento Boolean   @default(false)
+  createdAt        DateTime   @default(now())
+  concierto        Concierto?
+
+  @@index([estado])
+}
+
+model Concierto {
+  id          String    @id @default(cuid())
+  titulo      String
+  tipo        String // ESPECIAL | RETRETA | SOLICITADO
+  fecha       DateTime
+  lugar       String
+  agrupacion  String    @default("Banda Sinfónica de Pereira")
+  descripcion String?
+  estado      String    @default("PROGRAMADO") // PROGRAMADO | REALIZADO | CANCELADO
+  solicitudId String?   @unique
+  solicitud   SolicitudConcierto? @relation(fields: [solicitudId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+
+  movimientos MovimientoInstrumento[]
+  encuestas   Encuesta[]
+
+  @@index([fecha])
+}
+
+// ---------- Instrumentos (CAR-03) ----------
+
+model Instrumento {
+  id            String   @id @default(cuid())
+  codigo        String   @unique
+  nombre        String
+  familia       String // VIENTO_MADERA | VIENTO_METAL | PERCUSION | CUERDA | OTRO
+  marca         String?
+  estado        String   @default("DISPONIBLE") // DISPONIBLE | PRESTADO | MANTENIMIENTO | BAJA
+  observaciones String?
+  createdAt     DateTime @default(now())
+
+  movimientos MovimientoInstrumento[]
+}
+
+model MovimientoInstrumento {
+  id              String      @id @default(cuid())
+  instrumentoId   String
+  instrumento     Instrumento @relation(fields: [instrumentoId], references: [id], onDelete: Cascade)
+  conciertoId     String
+  concierto       Concierto   @relation(fields: [conciertoId], references: [id], onDelete: Cascade)
+  responsable     String // músico que recibe el instrumento
+  fechaSalida     DateTime    @default(now())
+  estadoSalida    String      @default("BUENO") // BUENO | REGULAR | MALO
+  fechaRegreso    DateTime?
+  estadoRegreso   String?
+  observaciones   String?
+  registradoPor   String?
+
+  @@index([instrumentoId])
+  @@index([conciertoId])
+}
+
+// ---------- Formación y festivales (CAR-06 a CAR-09) ----------
+
+model Proceso {
+  id                String    @id @default(cuid())
+  nombre            String
+  tipo              String // FESTIVAL | FORMACION
+  descripcion       String?
+  necesidades       String // necesidades de formación identificadas
+  formadorId        String?
+  formador          Usuario?  @relation(fields: [formadorId], references: [id], onDelete: SetNull)
+  numeroContrato    String? // solo referencia (la contratación la hace la Alcaldía)
+  fechaInicio       DateTime
+  fechaFin          DateTime
+  cupo              Int       @default(30)
+  asistenciaMinima  Int       @default(80) // % mínimo para certificar
+  estado            String    @default("ABIERTO") // ABIERTO | EN_CURSO | CERRADO
+  fechaCierre       DateTime?
+  createdAt         DateTime  @default(now())
+
+  jornadas      Jornada[]
+  inscripciones Inscripcion[]
+}
+
+model Jornada {
+  id        String   @id @default(cuid())
+  procesoId String
+  proceso   Proceso  @relation(fields: [procesoId], references: [id], onDelete: Cascade)
+  fecha     DateTime
+  tema      String
+  lugar     String?
+
+  asistencias Asistencia[]
+
+  @@index([procesoId])
+}
+
+model Inscripcion {
+  id                 String   @id @default(cuid())
+  procesoId          String
+  proceso            Proceso  @relation(fields: [procesoId], references: [id], onDelete: Cascade)
+  participanteId     String
+  participante       Usuario  @relation(fields: [participanteId], references: [id], onDelete: Cascade)
+  createdAt          DateTime @default(now())
+  porcentajeAsistencia Int?
+  certificado        Boolean  @default(false)
+  codigoCertificado  String?  @unique
+
+  asistencias Asistencia[]
+
+  @@unique([procesoId, participanteId])
+}
+
+model Asistencia {
+  id            String      @id @default(cuid())
+  jornadaId     String
+  jornada       Jornada     @relation(fields: [jornadaId], references: [id], onDelete: Cascade)
+  inscripcionId String
+  inscripcion   Inscripcion @relation(fields: [inscripcionId], references: [id], onDelete: Cascade)
+  presente      Boolean     @default(false)
+
+  @@unique([jornadaId, inscripcionId])
+}
+
+// ---------- Encuestas (CAR-04, CAR-05) ----------
+
+model Encuesta {
+  id          String     @id @default(cuid())
+  titulo      String
+  descripcion String?
+  periodo     String // p. ej. 2026-2 (se aplican cada 6 meses)
+  conciertoId String?
+  concierto   Concierto? @relation(fields: [conciertoId], references: [id], onDelete: SetNull)
+  estado      String     @default("BORRADOR") // BORRADOR | PUBLICADA | CERRADA
+  createdAt   DateTime   @default(now())
+
+  preguntas  Pregunta[]
+  respuestas RespuestaEncuesta[]
+  planes     PlanMejora[]
+}
+
+model Pregunta {
+  id         String   @id @default(cuid())
+  encuestaId String
+  encuesta   Encuesta @relation(fields: [encuestaId], references: [id], onDelete: Cascade)
+  texto      String
+  tipo       String // ESCALA (1-5) | SI_NO | TEXTO
+  orden      Int
+
+  items RespuestaItem[]
+}
+
+model RespuestaEncuesta {
+  id         String   @id @default(cuid())
+  encuestaId String
+  encuesta   Encuesta @relation(fields: [encuestaId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  items RespuestaItem[]
+}
+
+model RespuestaItem {
+  id          String            @id @default(cuid())
+  respuestaId String
+  respuesta   RespuestaEncuesta @relation(fields: [respuestaId], references: [id], onDelete: Cascade)
+  preguntaId  String
+  pregunta    Pregunta          @relation(fields: [preguntaId], references: [id], onDelete: Cascade)
+  valorNumero Int?
+  valorTexto  String?
+
+  @@index([preguntaId])
+}
+
+model PlanMejora {
+  id              String    @id @default(cuid())
+  encuestaId      String
+  encuesta        Encuesta  @relation(fields: [encuestaId], references: [id], onDelete: Cascade)
+  diagnostico     String
+  acciones        String
+  responsable     String
+  fechaCompromiso DateTime
+  createdAt       DateTime  @default(now())
+}
+
+// ---------- Notificaciones (servicio utilitario) ----------
+
+model Notificacion {
+  id           String   @id @default(cuid())
+  destinatario String
+  asunto       String
+  cuerpo       String
+  tipo         String // CONFIRMACION | RECORDATORIO | RESPUESTA_SOLICITUD
+  createdAt    DateTime @default(now())
+}

@@ -1,0 +1,3252 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "SGM-LT · Servicios del Módulo de Música",
+    "version": "1.0.0",
+    "description": "Servicios REST del Sistema de Gestión Musical Lucy Tejada (Secretaría de Cultura de Pereira).\n\n**Autenticación:** obtenga un token con `POST /auth/login` y envíelo en la cabecera `Authorization: Bearer <token>`. Los servicios no guardan estado de sesión (JWT, 8 horas de vigencia).\n\n**Roles:** DIRECTOR, AUXILIAR, FORMADOR, PARTICIPANTE (ver `x-roles` en cada operación).\n\n**Errores:** todas las respuestas de error tienen la forma `{ \"error\": string, \"detalles\"?: any }`."
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "Servidor actual"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Autenticación"
+    },
+    {
+      "name": "Conciertos",
+      "description": "Agenda, solicitudes y programación (consumidores: Web, Escenarios, Emisora)"
+    },
+    {
+      "name": "Instrumentos",
+      "description": "Inventario y trazabilidad de salidas"
+    },
+    {
+      "name": "Formación",
+      "description": "Festivales, procesos de formación, inscripción, asistencia y certificados (consumidores: Web, Escuela)"
+    },
+    {
+      "name": "Encuestas",
+      "description": "Encuestas de satisfacción y planes de mejoramiento"
+    },
+    {
+      "name": "Reportes"
+    },
+    {
+      "name": "Notificaciones",
+      "description": "Servicio utilitario de correo"
+    },
+    {
+      "name": "Administración"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Iniciar sesión y obtener JWT",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Login"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token emitido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sesion"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          }
+        }
+      }
+    },
+    "/auth/registro": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Registro público de participantes (requiere aceptar tratamiento de datos, Ley 1581)",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Registro"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Cuenta creada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sesion"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "409": {
+            "description": "Correo ya registrado"
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Cerrar sesión",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Datos del usuario autenticado",
+        "responses": {
+          "200": {
+            "description": "Usuario",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Usuario"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          }
+        }
+      }
+    },
+    "/conciertos": {
+      "get": {
+        "tags": [
+          "Conciertos"
+        ],
+        "summary": "Consultar agenda de conciertos (pública)",
+        "security": [],
+        "parameters": [
+          {
+            "name": "desde",
+            "in": "query",
+            "description": "Fecha inicial (ISO)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "hasta",
+            "in": "query",
+            "description": "Fecha final (ISO)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "description": "Tipo",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ESPECIAL",
+                "RETRETA",
+                "SOLICITADO"
+              ]
+            }
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "description": "Estado",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PROGRAMADO",
+                "REALIZADO",
+                "CANCELADO"
+              ]
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "description": "Número de página",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "tamano",
+            "in": "query",
+            "description": "Tamaño de página (máx. 200)",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agenda",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "datos": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Concierto"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "pagina": {
+                      "type": "integer"
+                    },
+                    "tamano": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Conciertos"
+        ],
+        "summary": "Programar concierto especial o retreta",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConciertoEntrada"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Concierto"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/conciertos/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Conciertos"
+        ],
+        "summary": "Detalle de concierto",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Concierto",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Concierto"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Conciertos"
+        ],
+        "summary": "Actualizar concierto (incluye cambio de estado)",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConciertoActualizar"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Actualizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Concierto"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Conciertos"
+        ],
+        "summary": "Eliminar concierto",
+        "x-roles": [
+          "DIRECTOR"
+        ],
+        "responses": {
+          "200": {
+            "description": "Eliminado"
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/conciertos/solicitudes": {
+      "get": {
+        "tags": [
+          "Conciertos"
+        ],
+        "summary": "Listar solicitudes de concierto",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "description": "Estado",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDIENTE",
+                "APROBADA",
+                "RECHAZADA"
+              ]
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "description": "Número de página",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "tamano",
+            "in": "query",
+            "description": "Tamaño de página (máx. 200)",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Solicitudes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "datos": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Solicitud"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "pagina": {
+                      "type": "integer"
+                    },
+                    "tamano": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Conciertos"
+        ],
+        "summary": "Crear solicitud de concierto (pública: instituciones y comunidad)",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudEntrada"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Radicada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "estado": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          }
+        }
+      }
+    },
+    "/conciertos/solicitudes/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Conciertos"
+        ],
+        "summary": "Detalle de solicitud",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "responses": {
+          "200": {
+            "description": "Solicitud",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Solicitud"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Conciertos"
+        ],
+        "summary": "Responder solicitud. Si se aprueba se programa el concierto y se notifica al solicitante.",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RespuestaSolicitud"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Respondida"
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          },
+          "409": {
+            "description": "Ya respondida"
+          }
+        }
+      }
+    },
+    "/instrumentos": {
+      "get": {
+        "tags": [
+          "Instrumentos"
+        ],
+        "summary": "Consultar inventario",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "description": "Estado",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DISPONIBLE",
+                "PRESTADO",
+                "MANTENIMIENTO",
+                "BAJA"
+              ]
+            }
+          },
+          {
+            "name": "familia",
+            "in": "query",
+            "description": "Familia",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Búsqueda por código o nombre",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "description": "Número de página",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "tamano",
+            "in": "query",
+            "description": "Tamaño de página (máx. 200)",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Inventario",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "datos": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Instrumento"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "pagina": {
+                      "type": "integer"
+                    },
+                    "tamano": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Instrumentos"
+        ],
+        "summary": "Registrar instrumento",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstrumentoEntrada"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Instrumento"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          },
+          "409": {
+            "description": "Código repetido"
+          }
+        }
+      }
+    },
+    "/instrumentos/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Instrumentos"
+        ],
+        "summary": "Ficha e historial del instrumento",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "responses": {
+          "200": {
+            "description": "Instrumento",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Instrumento"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Instrumentos"
+        ],
+        "summary": "Actualizar instrumento (estado MANTENIMIENTO, BAJA…)",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstrumentoEntrada"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Actualizado"
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/instrumentos/salidas": {
+      "post": {
+        "tags": [
+          "Instrumentos"
+        ],
+        "summary": "Registrar salida de instrumentos para un concierto",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Salida"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Salida registrada"
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          },
+          "409": {
+            "description": "Instrumento no disponible o concierto cancelado"
+          }
+        }
+      }
+    },
+    "/instrumentos/movimientos": {
+      "get": {
+        "tags": [
+          "Instrumentos"
+        ],
+        "summary": "Consultar movimientos (salidas y regresos)",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "parameters": [
+          {
+            "name": "abiertos",
+            "in": "query",
+            "description": "Solo instrumentos sin regresar",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "conciertoId",
+            "in": "query",
+            "description": "Concierto",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "instrumentoId",
+            "in": "query",
+            "description": "Instrumento",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "description": "Número de página",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "tamano",
+            "in": "query",
+            "description": "Tamaño de página (máx. 200)",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Movimientos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "datos": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Movimiento"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "pagina": {
+                      "type": "integer"
+                    },
+                    "tamano": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/instrumentos/movimientos/{id}/regreso": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "Instrumentos"
+        ],
+        "summary": "Registrar regreso del instrumento (si vuelve MALO pasa a MANTENIMIENTO)",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Regreso"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Regreso registrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Movimiento"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          },
+          "409": {
+            "description": "Ya regresó"
+          }
+        }
+      }
+    },
+    "/formacion/procesos": {
+      "get": {
+        "tags": [
+          "Formación"
+        ],
+        "summary": "Listar festivales y procesos de formación (público)",
+        "security": [],
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "description": "Estado",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ABIERTO",
+                "EN_CURSO",
+                "CERRADO"
+              ]
+            }
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "description": "Tipo",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "FESTIVAL",
+                "FORMACION"
+              ]
+            }
+          },
+          {
+            "name": "mios",
+            "in": "query",
+            "description": "Solo los asignados al formador autenticado",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "description": "Número de página",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "tamano",
+            "in": "query",
+            "description": "Tamaño de página (máx. 200)",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Procesos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "datos": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Proceso"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "pagina": {
+                      "type": "integer"
+                    },
+                    "tamano": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Formación"
+        ],
+        "summary": "Crear festival o proceso de formación",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProcesoEntrada"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Proceso"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/formacion/procesos/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Formación"
+        ],
+        "summary": "Detalle con cronograma (e inscritos si gestiona el proceso)",
+        "responses": {
+          "200": {
+            "description": "Proceso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Proceso"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Formación"
+        ],
+        "summary": "Actualizar proceso",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProcesoEntrada"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Actualizado"
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/formacion/procesos/{id}/jornadas": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Formación"
+        ],
+        "summary": "Cronograma de jornadas",
+        "responses": {
+          "200": {
+            "description": "Jornadas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Jornada"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Formación"
+        ],
+        "summary": "Agregar jornada al cronograma",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR",
+          "FORMADOR (asignado)"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JornadaEntrada"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Creada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Jornada"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/formacion/procesos/{id}/inscripciones": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Formación"
+        ],
+        "summary": "Listar inscritos",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR",
+          "FORMADOR (asignado)"
+        ],
+        "responses": {
+          "200": {
+            "description": "Inscritos"
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Formación"
+        ],
+        "summary": "Inscribir participante (el participante se inscribe a sí mismo; gestión puede enviar participanteId)",
+        "x-roles": [
+          "PARTICIPANTE",
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "participanteId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Inscrito"
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          },
+          "409": {
+            "description": "Sin cupo, cerrado o ya inscrito"
+          }
+        }
+      }
+    },
+    "/formacion/jornadas/{id}/asistencia": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Formación"
+        ],
+        "summary": "Planilla de asistencia de la jornada",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR",
+          "FORMADOR (asignado)"
+        ],
+        "responses": {
+          "200": {
+            "description": "Planilla"
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Formación"
+        ],
+        "summary": "Registrar asistencia de la jornada",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR",
+          "FORMADOR (asignado)"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Asistencia"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Guardada"
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/formacion/procesos/{id}/cerrar": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "Formación"
+        ],
+        "summary": "Cerrar proceso y emitir certificados a quienes cumplen la asistencia mínima",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "responses": {
+          "200": {
+            "description": "Proceso cerrado con resultados"
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          },
+          "409": {
+            "description": "Ya cerrado o sin jornadas"
+          }
+        }
+      }
+    },
+    "/formacion/mis-inscripciones": {
+      "get": {
+        "tags": [
+          "Formación"
+        ],
+        "summary": "Inscripciones del usuario autenticado",
+        "responses": {
+          "200": {
+            "description": "Inscripciones"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          }
+        }
+      }
+    },
+    "/formacion/certificados/{inscripcionId}": {
+      "parameters": [
+        {
+          "name": "inscripcionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Formación"
+        ],
+        "summary": "Emitir/descargar certificado PDF",
+        "responses": {
+          "200": {
+            "description": "Archivo",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          },
+          "409": {
+            "description": "Sin certificado"
+          }
+        }
+      }
+    },
+    "/formacion/certificados/verificar/{codigo}": {
+      "parameters": [
+        {
+          "name": "codigo",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Formación"
+        ],
+        "summary": "Verificar autenticidad de un certificado (público)",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Certificado válido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/encuestas": {
+      "get": {
+        "tags": [
+          "Encuestas"
+        ],
+        "summary": "Listar encuestas (sin rol de gestión: solo publicadas)",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Encuestas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "datos": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Encuesta"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "pagina": {
+                      "type": "integer"
+                    },
+                    "tamano": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Encuestas"
+        ],
+        "summary": "Crear encuesta con preguntas",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EncuestaEntrada"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Creada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Encuesta"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/encuestas/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Encuestas"
+        ],
+        "summary": "Detalle con preguntas (público si está publicada)",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Encuesta",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Encuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Encuestas"
+        ],
+        "summary": "Publicar o cerrar encuesta",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "estado"
+                ],
+                "properties": {
+                  "estado": {
+                    "type": "string",
+                    "enum": [
+                      "BORRADOR",
+                      "PUBLICADA",
+                      "CERRADA"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Actualizada"
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/encuestas/{id}/respuestas": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "Encuestas"
+        ],
+        "summary": "Recibir respuesta de un asistente (pública y anónima)",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RespuestaEncuesta"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Recibida"
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "409": {
+            "description": "Encuesta no publicada"
+          }
+        }
+      }
+    },
+    "/encuestas/{id}/resultados": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Encuestas"
+        ],
+        "summary": "Consultar resultados tabulados",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultados",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Resultados"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/encuestas/{id}/planes": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Encuestas"
+        ],
+        "summary": "Diagnósticos y planes de mejoramiento",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "responses": {
+          "200": {
+            "description": "Planes"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Encuestas"
+        ],
+        "summary": "Registrar diagnóstico y plan de mejoramiento",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanMejora"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Creado"
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/reportes/{tipo}": {
+      "parameters": [
+        {
+          "name": "tipo",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "conciertos",
+              "asistencia",
+              "instrumentos",
+              "inventario"
+            ]
+          }
+        },
+        {
+          "name": "formato",
+          "in": "query",
+          "description": "Formato",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "xlsx",
+              "pdf"
+            ]
+          }
+        },
+        {
+          "name": "desde",
+          "in": "query",
+          "description": "Desde (AAAA-MM-DD)",
+          "schema": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        {
+          "name": "hasta",
+          "in": "query",
+          "description": "Hasta (AAAA-MM-DD)",
+          "schema": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Reportes"
+        ],
+        "summary": "Exportar reporte a Excel o PDF",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "responses": {
+          "200": {
+            "description": "Archivo",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/notificaciones": {
+      "get": {
+        "tags": [
+          "Notificaciones"
+        ],
+        "summary": "Bandeja de salida de correos",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "parameters": [
+          {
+            "name": "pagina",
+            "in": "query",
+            "description": "Número de página",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "tamano",
+            "in": "query",
+            "description": "Tamaño de página (máx. 200)",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notificaciones"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Notificaciones"
+        ],
+        "summary": "Enviar recordatorio a los inscritos de un proceso",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "procesoId"
+                ],
+                "properties": {
+                  "procesoId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Enviados"
+          }
+        }
+      }
+    },
+    "/usuarios": {
+      "get": {
+        "tags": [
+          "Administración"
+        ],
+        "summary": "Listar usuarios",
+        "x-roles": [
+          "DIRECTOR",
+          "AUXILIAR"
+        ],
+        "parameters": [
+          {
+            "name": "rol",
+            "in": "query",
+            "description": "Rol",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DIRECTOR",
+                "AUXILIAR",
+                "FORMADOR",
+                "PARTICIPANTE"
+              ]
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "description": "Número de página",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "tamano",
+            "in": "query",
+            "description": "Tamaño de página (máx. 200)",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usuarios",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "datos": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Usuario"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "pagina": {
+                      "type": "integer"
+                    },
+                    "tamano": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Administración"
+        ],
+        "summary": "Crear usuario con rol",
+        "x-roles": [
+          "DIRECTOR"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UsuarioEntrada"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Usuario"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/usuarios/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "patch": {
+        "tags": [
+          "Administración"
+        ],
+        "summary": "Cambiar rol o activar/desactivar usuario",
+        "x-roles": [
+          "DIRECTOR"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nombre": {
+                    "type": "string"
+                  },
+                  "rol": {
+                    "type": "string",
+                    "enum": [
+                      "DIRECTOR",
+                      "AUXILIAR",
+                      "FORMADOR",
+                      "PARTICIPANTE"
+                    ]
+                  },
+                  "activo": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Actualizado"
+          },
+          "400": {
+            "$ref": "#/components/responses/Invalido"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SinPermiso"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/accesos": {
+      "get": {
+        "tags": [
+          "Administración"
+        ],
+        "summary": "Registro de accesos y operaciones",
+        "x-roles": [
+          "DIRECTOR"
+        ],
+        "parameters": [
+          {
+            "name": "accion",
+            "in": "query",
+            "description": "Acción",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "LOGIN_OK",
+                "LOGIN_FALLIDO",
+                "LOGOUT",
+                "REGISTRO",
+                "API"
+              ]
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "description": "Número de página",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "tamano",
+            "in": "query",
+            "description": "Tamaño de página (máx. 200)",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registros"
+          }
+        }
+      }
+    },
+    "/estadisticas": {
+      "get": {
+        "tags": [
+          "Administración"
+        ],
+        "summary": "Indicadores del tablero según rol",
+        "responses": {
+          "200": {
+            "description": "Indicadores"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "responses": {
+      "Invalido": {
+        "description": "Datos inválidos",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NoAutenticado": {
+        "description": "No autenticado",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "SinPermiso": {
+        "description": "Sin permisos para el rol",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NoEncontrado": {
+        "description": "No encontrado",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "detalles": {}
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "Login": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "director@lucytejada.gov.co"
+          },
+          "password": {
+            "type": "string",
+            "example": "Musica2026"
+          }
+        }
+      },
+      "Registro": {
+        "type": "object",
+        "required": [
+          "nombre",
+          "email",
+          "password",
+          "aceptaTratamiento"
+        ],
+        "properties": {
+          "nombre": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "documento": {
+            "type": "string"
+          },
+          "telefono": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8
+          },
+          "aceptaTratamiento": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        }
+      },
+      "Sesion": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "usuario": {
+            "$ref": "#/components/schemas/Usuario"
+          }
+        }
+      },
+      "Usuario": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "rol": {
+            "type": "string",
+            "enum": [
+              "DIRECTOR",
+              "AUXILIAR",
+              "FORMADOR",
+              "PARTICIPANTE"
+            ]
+          },
+          "activo": {
+            "type": "boolean"
+          }
+        }
+      },
+      "UsuarioEntrada": {
+        "type": "object",
+        "required": [
+          "nombre",
+          "email",
+          "rol",
+          "password"
+        ],
+        "properties": {
+          "nombre": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "documento": {
+            "type": "string"
+          },
+          "telefono": {
+            "type": "string"
+          },
+          "rol": {
+            "type": "string",
+            "enum": [
+              "DIRECTOR",
+              "AUXILIAR",
+              "FORMADOR",
+              "PARTICIPANTE"
+            ]
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "Concierto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "titulo": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "ESPECIAL",
+              "RETRETA",
+              "SOLICITADO"
+            ]
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lugar": {
+            "type": "string"
+          },
+          "agrupacion": {
+            "type": "string"
+          },
+          "descripcion": {
+            "type": "string",
+            "nullable": true
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "PROGRAMADO",
+              "REALIZADO",
+              "CANCELADO"
+            ]
+          }
+        }
+      },
+      "ConciertoEntrada": {
+        "type": "object",
+        "required": [
+          "titulo",
+          "tipo",
+          "fecha",
+          "lugar"
+        ],
+        "properties": {
+          "titulo": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "ESPECIAL",
+              "RETRETA",
+              "SOLICITADO"
+            ]
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lugar": {
+            "type": "string"
+          },
+          "agrupacion": {
+            "type": "string"
+          },
+          "descripcion": {
+            "type": "string"
+          }
+        }
+      },
+      "ConciertoActualizar": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ConciertoEntrada"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "estado": {
+                "type": "string",
+                "enum": [
+                  "PROGRAMADO",
+                  "REALIZADO",
+                  "CANCELADO"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "SolicitudEntrada": {
+        "type": "object",
+        "required": [
+          "tipoSolicitante",
+          "solicitante",
+          "email",
+          "fechaPropuesta",
+          "lugar",
+          "descripcion",
+          "aceptaTratamiento"
+        ],
+        "properties": {
+          "tipoSolicitante": {
+            "type": "string",
+            "enum": [
+              "INSTITUCION",
+              "COMUNIDAD"
+            ]
+          },
+          "solicitante": {
+            "type": "string"
+          },
+          "institucion": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "telefono": {
+            "type": "string"
+          },
+          "fechaPropuesta": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lugar": {
+            "type": "string"
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 10
+          },
+          "aceptaTratamiento": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        }
+      },
+      "Solicitud": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SolicitudEntrada"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "estado": {
+                "type": "string",
+                "enum": [
+                  "PENDIENTE",
+                  "APROBADA",
+                  "RECHAZADA"
+                ]
+              },
+              "respuesta": {
+                "type": "string",
+                "nullable": true
+              },
+              "fechaRespuesta": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
+      "RespuestaSolicitud": {
+        "type": "object",
+        "required": [
+          "decision",
+          "respuesta"
+        ],
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "APROBADA",
+              "RECHAZADA"
+            ]
+          },
+          "respuesta": {
+            "type": "string"
+          },
+          "concierto": {
+            "type": "object",
+            "description": "Obligatorio si decision = APROBADA",
+            "properties": {
+              "titulo": {
+                "type": "string"
+              },
+              "fecha": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "lugar": {
+                "type": "string"
+              },
+              "agrupacion": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "Instrumento": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "codigo": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "familia": {
+            "type": "string",
+            "enum": [
+              "VIENTO_MADERA",
+              "VIENTO_METAL",
+              "PERCUSION",
+              "CUERDA",
+              "OTRO"
+            ]
+          },
+          "marca": {
+            "type": "string"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "DISPONIBLE",
+              "PRESTADO",
+              "MANTENIMIENTO",
+              "BAJA"
+            ]
+          },
+          "observaciones": {
+            "type": "string"
+          }
+        }
+      },
+      "InstrumentoEntrada": {
+        "type": "object",
+        "required": [
+          "codigo",
+          "nombre",
+          "familia"
+        ],
+        "properties": {
+          "codigo": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "familia": {
+            "type": "string",
+            "enum": [
+              "VIENTO_MADERA",
+              "VIENTO_METAL",
+              "PERCUSION",
+              "CUERDA",
+              "OTRO"
+            ]
+          },
+          "marca": {
+            "type": "string"
+          },
+          "observaciones": {
+            "type": "string"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "DISPONIBLE",
+              "MANTENIMIENTO",
+              "BAJA"
+            ]
+          }
+        }
+      },
+      "Salida": {
+        "type": "object",
+        "required": [
+          "conciertoId",
+          "responsable",
+          "instrumentoIds"
+        ],
+        "properties": {
+          "conciertoId": {
+            "type": "string"
+          },
+          "responsable": {
+            "type": "string"
+          },
+          "instrumentoIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "estadoSalida": {
+            "type": "string",
+            "enum": [
+              "BUENO",
+              "REGULAR",
+              "MALO"
+            ]
+          },
+          "observaciones": {
+            "type": "string"
+          }
+        }
+      },
+      "Regreso": {
+        "type": "object",
+        "required": [
+          "estadoRegreso"
+        ],
+        "properties": {
+          "estadoRegreso": {
+            "type": "string",
+            "enum": [
+              "BUENO",
+              "REGULAR",
+              "MALO"
+            ]
+          },
+          "observaciones": {
+            "type": "string"
+          }
+        }
+      },
+      "Movimiento": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "instrumentoId": {
+            "type": "string"
+          },
+          "conciertoId": {
+            "type": "string"
+          },
+          "responsable": {
+            "type": "string"
+          },
+          "fechaSalida": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "estadoSalida": {
+            "type": "string"
+          },
+          "fechaRegreso": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "estadoRegreso": {
+            "type": "string",
+            "nullable": true
+          },
+          "observaciones": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ProcesoEntrada": {
+        "type": "object",
+        "required": [
+          "nombre",
+          "tipo",
+          "necesidades",
+          "fechaInicio",
+          "fechaFin",
+          "cupo"
+        ],
+        "properties": {
+          "nombre": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "FESTIVAL",
+              "FORMACION"
+            ]
+          },
+          "descripcion": {
+            "type": "string"
+          },
+          "necesidades": {
+            "type": "string",
+            "description": "Necesidades de formación identificadas"
+          },
+          "formadorId": {
+            "type": "string"
+          },
+          "numeroContrato": {
+            "type": "string",
+            "description": "Referencia del contrato de la Alcaldía"
+          },
+          "fechaInicio": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fechaFin": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cupo": {
+            "type": "integer"
+          },
+          "asistenciaMinima": {
+            "type": "integer",
+            "default": 80,
+            "description": "% mínimo para certificar"
+          }
+        }
+      },
+      "Proceso": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ProcesoEntrada"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "estado": {
+                "type": "string",
+                "enum": [
+                  "ABIERTO",
+                  "EN_CURSO",
+                  "CERRADO"
+                ]
+              },
+              "inscritos": {
+                "type": "integer"
+              },
+              "cuposDisponibles": {
+                "type": "integer"
+              }
+            }
+          }
+        ]
+      },
+      "JornadaEntrada": {
+        "type": "object",
+        "required": [
+          "fecha",
+          "tema"
+        ],
+        "properties": {
+          "fecha": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tema": {
+            "type": "string"
+          },
+          "lugar": {
+            "type": "string"
+          }
+        }
+      },
+      "Jornada": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/JornadaEntrada"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "procesoId": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "Asistencia": {
+        "type": "object",
+        "required": [
+          "registros"
+        ],
+        "properties": {
+          "registros": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "inscripcionId",
+                "presente"
+              ],
+              "properties": {
+                "inscripcionId": {
+                  "type": "string"
+                },
+                "presente": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      },
+      "EncuestaEntrada": {
+        "type": "object",
+        "required": [
+          "titulo",
+          "periodo",
+          "preguntas"
+        ],
+        "properties": {
+          "titulo": {
+            "type": "string"
+          },
+          "descripcion": {
+            "type": "string"
+          },
+          "periodo": {
+            "type": "string",
+            "example": "2026-2",
+            "description": "Semestre (encuesta cada 6 meses)"
+          },
+          "conciertoId": {
+            "type": "string"
+          },
+          "preguntas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "texto",
+                "tipo"
+              ],
+              "properties": {
+                "texto": {
+                  "type": "string"
+                },
+                "tipo": {
+                  "type": "string",
+                  "enum": [
+                    "ESCALA",
+                    "SI_NO",
+                    "TEXTO"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "Encuesta": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/EncuestaEntrada"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "estado": {
+                "type": "string",
+                "enum": [
+                  "BORRADOR",
+                  "PUBLICADA",
+                  "CERRADA"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "RespuestaEncuesta": {
+        "type": "object",
+        "required": [
+          "respuestas"
+        ],
+        "properties": {
+          "respuestas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "preguntaId"
+              ],
+              "properties": {
+                "preguntaId": {
+                  "type": "string"
+                },
+                "valorNumero": {
+                  "type": "integer",
+                  "description": "ESCALA: 1-5; SI_NO: 1 = sí, 0 = no"
+                },
+                "valorTexto": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Resultados": {
+        "type": "object",
+        "properties": {
+          "totalRespuestas": {
+            "type": "integer"
+          },
+          "indiceSatisfaccion": {
+            "type": "integer",
+            "description": "% promedio de satisfacción"
+          },
+          "resultados": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "preguntaId": {
+                  "type": "string"
+                },
+                "texto": {
+                  "type": "string"
+                },
+                "tipo": {
+                  "type": "string"
+                },
+                "respuestas": {
+                  "type": "integer"
+                },
+                "promedio": {
+                  "type": "number"
+                },
+                "distribucion": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  }
+                },
+                "porcentajeSatisfaccion": {
+                  "type": "integer"
+                },
+                "comentarios": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "PlanMejora": {
+        "type": "object",
+        "required": [
+          "diagnostico",
+          "acciones",
+          "responsable",
+          "fechaCompromiso"
+        ],
+        "properties": {
+          "diagnostico": {
+            "type": "string"
+          },
+          "acciones": {
+            "type": "string"
+          },
+          "responsable": {
+            "type": "string"
+          },
+          "fechaCompromiso": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  }
+}
