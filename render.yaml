@@ -1,0 +1,24 @@
+# Blueprint de Render para la demostración del SGM-LT (plan gratuito).
+# En render.com: New → Blueprint → elegir este repositorio → Apply.
+#
+# Modo demostración: la base SQLite vive en el disco temporal del servicio.
+# En cada arranque (despliegue o cuando el servicio despierta) se crea la base
+# y se cargan los datos de ejemplo, así que los cambios no se conservan.
+services:
+  - type: web
+    name: gestion-lucy-tejada
+    runtime: node
+    plan: free
+    region: virginia
+    branch: main
+    autoDeploy: true
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start:render
+    healthCheckPath: /api/v1/openapi.json
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        value: file:./dev.db
+      - key: JWT_SECRET
+        generateValue: true

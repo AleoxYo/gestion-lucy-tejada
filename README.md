@@ -118,7 +118,22 @@ scripts/                    Prueba de aceptación, prueba de carga, exportación
 - Las encuestas solo reciben respuestas cuando están `PUBLICADA`. Las preguntas de escala (1 a 5) y de sí/no son obligatorias.
 - El índice de satisfacción es el promedio del % de respuestas 4-5 y de respuestas «Sí».
 
-## 6. Notas para producción
+## 6. Demostración en Render (plan gratuito)
+
+El archivo `render.yaml` define el servicio. Para crearlo:
+1. Entre a https://render.com con su cuenta de GitHub.
+2. **New → Blueprint**.
+3. Elija el repositorio `gestion-lucy-tejada` y pulse **Apply**.
+
+Render ejecuta `npm ci && npm run build` y arranca con `npm run start:render`, que crea la base SQLite, carga los datos de demostración e inicia Next.js. El `JWT_SECRET` lo genera Render y la app queda publicada por HTTPS.
+
+- **Modo demostración:** el disco del plan gratuito es temporal. Cada despliegue o reinicio (por ejemplo, cuando el servicio despierta) deja los datos como al inicio.
+- **Inactividad:** el servicio se duerme tras unos 15 minutos sin visitas. La primera visita después tarda entre 30 y 60 segundos.
+- **Despliegue automático:** cada `git push` a `main` despliega de nuevo.
+- **Deshabilitar:** en el servicio, **Settings → Suspend Web Service** (se reactiva con **Resume**) o **Delete Web Service** para eliminarlo. Para que los push no desplieguen, desactive **Auto-Deploy**.
+- **Rendimiento:** la instancia gratuita tiene recursos limitados. La prueba de carga de CAR-14 se documenta con el resultado local de `docs/PROTOCOLO_PRUEBAS.md`.
+
+## 7. Notas para producción
 
 - Cambiar `JWT_SECRET` en `.env` por un valor aleatorio largo.
 - Servir detrás de un proxy con certificado TLS real (Nginx o IIS) o en la nube de la Alcaldía, con ambiente de staging.

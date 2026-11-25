@@ -11,6 +11,7 @@
     "dev:https": "next dev --experimental-https",
     "build": "next build",
     "start": "next start",
+    "start:render": "prisma db push --skip-generate && tsx prisma/seed.ts && next start -H 0.0.0.0",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "test:aceptacion": "node scripts/prueba-aceptacion.mjs",
@@ -39,5 +40,8 @@
     "tailwindcss": "^4.1.0",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

@@ -15,7 +15,8 @@ export async function respuestaConSesion(req: NextRequest, s: Sesion, status = 2
   res.cookies.set(COOKIE_SESION, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: req.nextUrl.protocol === 'https:',
+    // Detrás de un proxy (Render) el protocolo original llega en x-forwarded-proto.
+    secure: req.headers.get('x-forwarded-proto') === 'https' || req.nextUrl.protocol === 'https:',
     path: '/',
     maxAge: DURACION_SESION_SEG,
   });
